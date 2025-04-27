@@ -1,23 +1,13 @@
 import { UserRole } from "../user/user.interface";
 
-export interface IAuth {
+export type TAuth = {
   email: string;
-  password: string;
-  clientInfo: {
-    device: 'pc' | 'mobile'; // Device type
-    browser: string;         // Browser name
-    ipAddress: string;       // User IP address
-    pcName?: string;         // Optional PC name
-    os?: string;             // Optional OS name (Windows, MacOS, etc.)
-    userAgent?: string;      // Optional user agent string
-  };
-}
+  password: string; // Optional user agent string
+};
 
-export interface IJwtPayload {
-  userId: string;
-  name: string;
+export type TJwtPayload = {
+  firstName: string;
+  lastName: string;
   email: string;
-  hasShop: boolean;
   role: UserRole;
-  isActive: boolean;
-}
+};

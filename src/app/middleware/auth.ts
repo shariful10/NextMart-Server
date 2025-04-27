@@ -1,65 +1,47 @@
-import { NextFunction, Request, Response } from 'express';
-import jwt, { JwtPayload, TokenExpiredError } from 'jsonwebtoken';
-import config from '../config';
-import { UserRole } from '../modules/user/user.interface';
-import AppError from '../errors/appError';
-import catchAsync from '../utils/catchAsync';
-import { StatusCodes } from 'http-status-codes';
-import User from '../modules/user/user.model';
+import jwt, { JwtPayload } from "jsonwebtoken";
+import config from "../config";
+import { TUserRole } from "../modules/user/user.interface";
+import catchAsync from "../utils/catchAsync";
+import { StatusCodes } from "http-status-codes";
+import AppError from "../errors/appError";
+import User from "../modules/user/user.model";
 
-const auth = (...requiredRoles: UserRole[]) => {
-   return catchAsync(
-      async (req: Request, res: Response, next: NextFunction) => {
-         const token = req.headers.authorization;
+const auth = (...requiredRoles: TUserRole[]) => {
+  return catchAsync(async (req, _res, next) => {
+    let token = req.headers.authorization;
 
-         if (!token) {
-            throw new AppError(
-               StatusCodes.UNAUTHORIZED,
-               'You are not authorized!'
-            );
-         }
+    if (token && token.startsWith("Bearer")) {
+      token = req.headers.authorization?.split(" ")[1].trim();
+    }
 
-         try {
-            const decoded = jwt.verify(
-               token,
-               config.jwt_access_secret as string
-            ) as JwtPayload;
+    // If the token send from the client
+    if (!token) {
+      throw new AppError(StatusCodes.UNAUTHORIZED, "You are not authorized!");
+    }
 
-            const { role, email } = decoded;
+    // Check if the token is valid
+    const decoded = jwt.verify(
+      token,
+      config.jwt_access_secret as string
+    ) as JwtPayload;
 
-            const user = await User.findOne({ email, role, isActive: true });
+    const { role, email } = decoded;
 
-            if (!user) {
-               throw new AppError(
-                  StatusCodes.NOT_FOUND,
-                  'This user is not found!'
-               );
-            }
+    const user = await User.isUserExistsByEmail(email);
 
-            if (requiredRoles && !requiredRoles.includes(role)) {
-               throw new AppError(
-                  StatusCodes.UNAUTHORIZED,
-                  'You are not authorized!'
-               );
-            }
+    // Checking if the user is exist
+    if (!user) {
+      throw new AppError(StatusCodes.NOT_FOUND, "User not found!");
+    }
 
-            req.user = decoded as JwtPayload & { role: string };
-            next();
-         } catch (error) {
-            if (error instanceof TokenExpiredError) {
-               return next(
-                  new AppError(
-                     StatusCodes.UNAUTHORIZED,
-                     'Token has expired! Please login again.'
-                  )
-               );
-            }
-            return next(
-               new AppError(StatusCodes.UNAUTHORIZED, 'Invalid token!')
-            );
-         }
-      }
-   );
+    if (requiredRoles && !requiredRoles.includes(role)) {
+      throw new AppError(StatusCodes.UNAUTHORIZED, "You are not authorized!");
+    }
+
+    req.user = decoded as JwtPayload;
+
+    next();
+  });
 };
 
 export default auth;
